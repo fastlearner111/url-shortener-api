@@ -1,7 +1,10 @@
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
-from datetime import datetime
+from datetime import datetime, timezone
 from app.core.database import Base
+
+# Define the UTC lambda helper
+utc_now = lambda: datetime.now(timezone.utc)
 
 class User(Base):
     __tablename__ = "users"
@@ -19,10 +22,10 @@ class UrlMapping(Base):
     id = Column(Integer, primary_key=True, index=True)
     original_url = Column(String, nullable=False)
     short_code = Column(String, unique=True, index=True, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
     expires_at = Column(DateTime, nullable=True)
     
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
     owner_id = Column(Integer, ForeignKey("users.id"))
     owner = relationship("User", back_populates="urls")
 
@@ -33,7 +36,7 @@ class AnalyticsClick(Base):
     __tablename__ = "analytics_clicks"
 
     id = Column(Integer, primary_key=True, index=True)
-    timestamp = Column(DateTime, default=datetime.utcnow)
+    timestamp = Column(DateTime, default=utc_now)
     user_agent = Column(String)
     ip_address = Column(String)
 
