@@ -14,9 +14,9 @@ jobs:
       postgres:
         image: postgres:15-alpine
         env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: password123
-          POSTGRES_DB: url_shortener
+          POSTGRES_USER: ${{ secrets.DB_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          POSTGRES_DB: ${{ secrets.DB_NAME }}
         ports:
           - 5432:5432
         options: >-
@@ -52,9 +52,10 @@ jobs:
 
       - name: Run Pytest Suite
         env:
-          DATABASE_URL: postgresql://postgres:password123@localhost:5432/url_shortener
+          PYTHONPATH: .
+          DATABASE_URL: postgresql://${{ secrets.DB_USER }}:${{ secrets.DB_PASSWORD }}@localhost:5432/${{ secrets.DB_NAME }}
           REDIS_URL: redis://localhost:6379/0
-          SECRET_KEY: ci_pipeline_test_secret_key
+          SECRET_KEY: ${{ secrets.SECRET_KEY }}
           SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
         run: |
           pytest -v
