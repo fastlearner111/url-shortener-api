@@ -15,12 +15,12 @@
 A URL shortener REST API built with FastAPI, PostgreSQL, and Redis, using a clean layered architecture (routers, services, repositories, core, middleware). Includes JWT-secured link ownership, cache-aside redirects with hit/miss telemetry, fixed-window rate limiting with fail-open behavior, and load testing via Locust.
 
 ________________________________________
-```
+
 🌐 Live Cloud Deployment
 •	Base API URL: https://url-shortener-api-6g12.onrender.com
 •	Interactive Swagger UI Docs: https://url-shortener-api-6g12.onrender.com/docs
 •	ReDoc Specification: https://url-shortener-api-6g12.onrender.com/redoc
-```
+
 ________________________________________
 ```
 ✨ Core Features & Metrics
@@ -177,9 +177,14 @@ ________________________________________
 Prerequisites
 •	Docker & Docker Compose
 •	Git
+
+
 1. Clone the Repository
+```bash
 git clone https://github.com/fastlearner111/url-shortener-api.git
 cd url-shortener-api
+
+
 2. Create a .env File
 Copy .env.example to .env and fill in your own values:
 DATABASE_URL=postgresql://postgres:your_password@db:5432/postgres
@@ -187,12 +192,17 @@ SECRET_KEY=your_super_secret_key_here
 REDIS_URL=redis://redis:6379
 SENTRY_DSN=your_sentry_dsn_here
 ACCESS_TOKEN_EXPIRE_MINUTES=60
+
+
 3. Run with Docker Compose
 docker compose up --build
 The API will be available locally at http://localhost:8000.
+
+
 4. Apply Database Migrations
 docker compose exec api alembic upgrade head
 ```
+
 ________________________________________
 ```
 🧪 Running Tests & Load Tests
