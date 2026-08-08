@@ -1,11 +1,28 @@
+import os
+import sys
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, declarative_base
-from app.core.config import settings
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.declarative import declarative_base
 
-engine = create_engine(settings.DATABASE_URL, pool_pre_ping=True)
+# Automatically detect if pytest is running, and force SQLite for tests
+is_testing = "pytest" in sys.argv[0] or os.getenv("TESTING") == "true"
+
+if is_testing:
+    DATABASE_URL = "sqlite:///:memory:"
+else:
+    DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./test.db")
+    if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
+        DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
+# Configure engine based on database type
+if DATABASE_URL.startswith("sqlite"):
+    engine = create_engine(
+        DATABASE_URL, connect_args={"check_same_thread": False}
+    )
+else:
+    engine = create_engine(DATABASE_URL)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
 Base = declarative_base()
 
 def get_db():
