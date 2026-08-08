@@ -172,7 +172,7 @@ Rate limiting: fixed window, not sliding window. The limiter uses a fixed-window
 Auth: JWT ownership on write paths. /shorten requires a valid bearer token and attributes the created link to the authenticated user rather than a hardcoded owner — this was a real bug caught during review (it originally defaulted every link to owner_id=1 with no auth check) and fixed by wiring Depends(get_current_user) into the endpoint.
 ```
 ________________________________________
-```
+
 🚀 Getting Started Locally
 Prerequisites
 •	Docker & Docker Compose
@@ -183,23 +183,28 @@ Prerequisites
 ```bash
 git clone https://github.com/fastlearner111/url-shortener-api.git
 cd url-shortener-api
+```
 
 
 2. Create a .env File
+```env
 Copy .env.example to .env and fill in your own values:
 DATABASE_URL=postgresql://postgres:your_password@db:5432/postgres
 SECRET_KEY=your_super_secret_key_here
 REDIS_URL=redis://redis:6379
 SENTRY_DSN=your_sentry_dsn_here
 ACCESS_TOKEN_EXPIRE_MINUTES=60
-
+```
 
 3. Run with Docker Compose
+```
 docker compose up --build
+```
 The API will be available locally at http://localhost:8000.
 
 
 4. Apply Database Migrations
+```
 docker compose exec api alembic upgrade head
 ```
 
