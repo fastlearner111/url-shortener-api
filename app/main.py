@@ -4,6 +4,7 @@ from app.middleware.timing import TimingMiddleware
 from app.middleware.errors import ErrorMiddleware
 from app.core.logging_middleware import LoggingMiddleware
 from app.routers import health, auth, urls, redirect
+from app.core.database import Base, engine
 from starlette.middleware.base import BaseHTTPMiddleware
 import sentry_sdk, os
 
@@ -14,6 +15,10 @@ sentry_sdk.init(
 )
 
 app = FastAPI()
+
+@app.on_event("startup")
+def on_startup():
+    Base.metadata.create_all(bind=engine)
 # we seperate stack so that we dont crash everyhting cause of  wrong postioning
 # 1. Middleware stack
 app.add_middleware(LoggingMiddleware)
