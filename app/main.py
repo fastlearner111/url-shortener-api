@@ -14,7 +14,7 @@ sentry_sdk.init(
 )
 
 app = FastAPI()
-
+# we seperate stack so that we dont crash everyhting cause of  wrong postioning
 # 1. Middleware stack
 app.add_middleware(LoggingMiddleware)
 app.add_middleware(TimingMiddleware)

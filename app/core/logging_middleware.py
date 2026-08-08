@@ -3,7 +3,7 @@ import logging
 from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
 
-# Configure standard Python logging
+#  this one will configure standard Python logging
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
@@ -14,7 +14,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         start_time = time.time()
         
-        # Process the request and get the response
+        # we use this to process the request and get the response
         response = await call_next(request)
         
         # Calculate process time
@@ -29,6 +29,6 @@ class LoggingMiddleware(BaseHTTPMiddleware):
             f"Duration: {formatted_process_time}"
         )
         
-        # Add custom header tracking duration
+        # Adds custom header tracking duration
         response.headers["X-Process-Time"] = formatted_process_time
         return response

@@ -1,7 +1,8 @@
-import redis
+import redis, os
 from app.core.config import settings
 
-redis_client = redis.from_url(settings.REDIS_URL, decode_responses=True)
+REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+redis_client = redis.from_url(REDIS_URL)
 
 def increment_hit():
     redis_client.incr("cache_hits")

@@ -2,14 +2,14 @@ import os
 import redis
 from fastapi import Request, HTTPException
 
-# Connect to Redis (local dev)
+# Connects to Redis (local dev)
 r = redis.Redis(host="localhost", port=6379, db=0)
 
-RATE_LIMIT = 10      # Max requests
+RATE_LIMIT = 10      # Max requests allwoed
 WINDOW_SIZE = 60     # Per 60 seconds
 
 async def rate_limiter(request: Request, call_next):
-    # 1. Skip rate limiting entirely when running tests
+    # 1 We skip rate limiting entirely when running tests
     if os.environ.get("TESTING") == "1" or os.environ.get("PYTEST_CURRENT_TEST"):
         return await call_next(request)
 

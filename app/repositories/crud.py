@@ -6,7 +6,6 @@ from datetime import datetime
 
 # User CRUD
 
-
 def create_user(db: Session, email: str, password: str):
     hashed = hash_password(password)
     user = User(email=email, hashed_password=hashed)
@@ -29,9 +28,7 @@ def authenticate_user(db: Session, email: str, password: str):
     return user
 
 
-
 # URL CRUD
-
 
 def create_url(db: Session, original_url: str, short_code: str, owner_id: int, expires_at=None):
     url = UrlMapping(
@@ -47,21 +44,19 @@ def create_url(db: Session, original_url: str, short_code: str, owner_id: int, e
     db.refresh(url)
     return url
 
-def get_url_by_code(db: Session, short_code: str):
-    return (
-        db.query(UrlMapping)
-        .filter(UrlMapping.short_code == short_code)
-        .first()
-    )
-
 
 def get_url_by_code(db: Session, short_code: str):
     return db.query(UrlMapping).filter(UrlMapping.short_code == short_code).first()
 
 
+def update_last_accessed(db: Session, url_obj):
+    url_obj.updated_at = datetime.utcnow()
+    db.commit()
+    db.refresh(url_obj)
+    return url_obj
+
 
 # Analytics CRUD
-
 
 def record_click(db: Session, url_id: int, user_agent: str, ip_address: str):
     click = AnalyticsClick(

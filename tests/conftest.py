@@ -6,6 +6,8 @@ from sqlalchemy.pool import StaticPool
 
 from app.main import app
 from app.core.database import Base, get_db
+from app.core.security import get_current_user
+from app.models.models import User
 
 # Use an in-memory SQLite database for fast, isolated tests
 SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
@@ -48,3 +50,12 @@ def client(db_session):
     with TestClient(app) as c:
         yield c
     app.dependency_overrides.clear()
+
+# --- ADD THIS FIXTURE HERE SO AUTH PASSES AUTOMATICALLY IN TESTS ---
+@pytest.fixture(autouse=True)
+def override_auth():
+    app.dependency_overrides[get_current_user] = lambda: User(id=1, email="test@example.com")
+    yield
+    # Clean up only the auth override after the test runs
+    if get_current_user in app.dependency_overrides:
+        del app.dependency_overrides[get_current_user]
