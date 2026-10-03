@@ -27,7 +27,7 @@ Hosted on Render's free tier with a Supabase PostgreSQL database. After a period
 - Create short links with an optional expiry time
 - Owner-only update and delete, enforced in the service layer (403 for anyone else)
 - Redirects check Redis first and fall back to PostgreSQL on a miss; expired links return 410, unknown codes return 404
-- Redis-backed fixed-window rate limiting per client IP, verified against the deployed API
+- Redis-backed fixed-window rate limiting per client IP that fails open if Redis is unreachable, verified against the deployed API and with Redis stopped locally
 - `X-Process-Time` header on every response from a timing middleware
 
 ## Stack
@@ -115,7 +115,7 @@ On update or delete: FastAPI --- DEL code ---> Redis
 
 **Cache-aside, not write-through.** Redirects are the hottest path, so the app checks Redis first, queries PostgreSQL on a miss, and stores the result. Entries expire after one hour, or at the link's expiry time if it has one. Creating a link does not populate the cache, so the first redirect to any link is always a miss. Updates and deletes evict the key.
 
-**Fixed-window rate limiting.** Each client IP gets a counter in Redis. The counter and its 60-second expiry are created in one atomic call (`SET key 0 EX 60 NX`), then incremented. The default limit is 10 requests per minute per IP, configurable with the `RATE_LIMIT` environment variable. A fixed window is simple and cheap, with the known trade-off that bursts at a window boundary can briefly exceed the limit. The client IP is read from `X-Forwarded-For` because Render sits behind a proxy. `/docs`, `/redoc`, `/openapi.json`, and `/health` are exempt.
+**Fixed-window rate limiting.** Each client IP gets a counter in Redis. The counter and its 60-second expiry are created in one atomic call (`SET key 0 EX 60 NX`), then incremented. The default limit is 10 requests per minute per IP, configurable with the `RATE_LIMIT` environment variable. A fixed window is simple and cheap, with the known trade-off that bursts at a window boundary can briefly exceed the limit. If Redis is unreachable the limiter lets requests through and logs a warning, so a cache outage does not take the API down (verified locally by stopping the Redis container). The client IP is read from `X-Forwarded-For` because Render sits behind a proxy. `/docs`, `/redoc`, `/openapi.json`, and `/health` are exempt.
 
 **Short codes.** Random base62 strings, checked against the database for collisions. After five failed attempts the code length grows to 8.
 
@@ -174,7 +174,6 @@ Never set `RATE_LIMIT` that high on a real deployment.
 
 - **Click analytics are not implemented.** The `analytics_clicks` table and `GET /urls/stats/{short_code}` exist, but nothing records clicks, so the count is always 0. Counting in Redis and flushing in batches would keep database writes off the hot path.
 - **Redirects share the strict rate limit.** Ten requests per minute per IP suits writes and logins, not redirects. Redirects should get a separate, much higher limit.
-- **The rate limiter's fail-open path is untested.** It is written to let requests through and log a warning when Redis is unreachable, but that path has not been exercised by taking Redis down.
 - **The rate limiter trusts the first `X-Forwarded-For` entry**, which a client may be able to spoof. A production setup should trust only the proxy's own hop.
 - **No test confirms that eviction removes a cached key.** The update and delete test only checks that the calls succeed.
 - **Alembic migrations are verified but not used at deploy time.** They rebuild the schema from an empty PostgreSQL database with no drift from the models (`alembic check` is clean), but the app still creates tables at startup with `create_all`. Switching deploys to `alembic upgrade head`, after running `alembic stamp head` on the existing production database, is the remaining step.
