@@ -10,7 +10,7 @@ import sentry_sdk, os
 
 sentry_sdk.init(
     dsn=os.getenv("SENTRY_DSN"),
-    send_default_pii=True,
+    send_default_pii=False,
     traces_sample_rate=1.0,
 )
 
@@ -31,9 +31,9 @@ app.add_middleware(BaseHTTPMiddleware, dispatch=rate_limiter)
 def root():
     return {"status": "URL Shortener API is running"}
 
-@app.get("/sentry-debug")
-async def trigger_error():
-    division_by_zero = 1 / 0
+#@app.get("/sentry-debug")
+#async def trigger_error():
+#    division_by_zero = 1 / 0
 
 # 3. Static/Monitoring routers
 app.include_router(health.router)

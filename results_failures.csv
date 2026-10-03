@@ -1,0 +1,5 @@
+Method,Name,Error,Occurrences,First Seen,Last Seen
+POST,/urls/shorten,HTTPError('429 Client Error: Too Many Requests for url: /urls/shorten'),852,2026-10-03T20:36:19Z,2026-10-03T20:37:13Z
+POST,/urls/shorten,HTTPError('401 Client Error: Unauthorized for url: /urls/shorten'),5,2026-10-03T20:36:20Z,2026-10-03T20:36:20Z
+GET,/{code},HTTPError('404 Client Error: Not Found for url: /{code}'),5,2026-10-03T20:36:20Z,2026-10-03T20:36:20Z
+GET,/{code},HTTPError('429 Client Error: Too Many Requests for url: /{code}'),3945,2026-10-03T20:36:19Z,2026-10-03T20:37:13Z

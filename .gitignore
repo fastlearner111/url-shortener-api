@@ -35,3 +35,6 @@ ehthumbs.db
 # === Docker & Local Volumes ===
 data/
 logs/
+
+__pycache__/
+*.pyc

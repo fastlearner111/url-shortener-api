@@ -16,7 +16,8 @@ def test_expired_url_redirection(client):
     short_code = data["short_code"]
 
     # 2. Try to access the expired URL via the service redirect route (/urls/r/{code})
-    response = client.get(f"/urls/r/{short_code}")
+    response = client.get(f"/{short_code}")
+    #response = client.get(f"/urls/r/{short_code}")
     
     # 3. Assert that it catches the expiration and returns 410 Gone
     assert response.status_code == 410
