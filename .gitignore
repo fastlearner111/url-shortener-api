@@ -38,3 +38,5 @@ logs/
 
 __pycache__/
 *.pyc
+
+results_*.csv
