@@ -1,5 +1,8 @@
+import logging
 import os
 import redis
+
+logger = logging.getLogger(__name__)
 
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 
@@ -10,6 +13,7 @@ class SimpleRedisCache:
             self.client = redis.from_url(REDIS_URL, decode_responses=True)
             self.client.ping()  # Test if server is actually up
         except Exception:
+            logger.warning("Redis cache unavailable at startup, running without cache")
             self.client = None  # If offline (like in tests), safely set to None
 
     def get(self, key: str):
@@ -34,6 +38,15 @@ class SimpleRedisCache:
         try:
             return self.client.incr(key)
         except Exception:
+            return None
+
+    def delete(self, key: str):
+        if not self.client:
+            return None
+        try:
+            return self.client.delete(key)
+        except Exception:
+            logger.warning("Redis delete failed for key %s, cache may be stale", key)
             return None
 
 # Global instance you import everywhere
