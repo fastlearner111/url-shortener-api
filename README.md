@@ -11,217 +11,190 @@
   <img src="https://img.shields.io/badge/Hosting-Render-F1502F?style=flat&logo=render&logoColor=white" />
 </p>
 
-🚀 URL Shortener API
-A URL shortener REST API built with FastAPI, PostgreSQL, and Redis, using a clean layered architecture (routers, services, repositories, core, middleware). Includes JWT-secured link ownership, cache-aside redirects with hit/miss telemetry, fixed-window rate limiting with fail-open behavior, and load testing via Locust.
+# URL Shortener API
 
-________________________________________
+A REST API for creating and resolving short links, built with FastAPI, PostgreSQL, and Redis. Authenticated users create links and manage their own. Redirects are served through a Redis cache-aside layer.
 
-🌐 Live Cloud Deployment
-•	Base API URL: https://url-shortener-api-6g12.onrender.com
-•	Interactive Swagger UI Docs: https://url-shortener-api-6g12.onrender.com/docs
-•	ReDoc Specification: https://url-shortener-api-6g12.onrender.com/redoc
+**Live deployment**
+- Base URL: https://url-shortener-api-6g12.onrender.com
+- Swagger UI: https://url-shortener-api-6g12.onrender.com/docs
+- ReDoc: https://url-shortener-api-6g12.onrender.com/redoc
 
-________________________________________
+Hosted on Render's free tier with a Supabase PostgreSQL database. After a period of inactivity the first request can take about a minute while the instance wakes up.
+
+## What it does
+
+- JWT bearer authentication (register and login), with bcrypt-hashed passwords
+- Create short links with an optional expiry time
+- Owner-only update and delete, enforced in the service layer (403 for anyone else)
+- Redirects check Redis first and fall back to PostgreSQL on a miss; expired links return 410, unknown codes return 404
+- Redis-backed fixed-window rate limiting per client IP that fails open if Redis is unreachable
+- `X-Process-Time` header on every response from a timing middleware
+
+## Stack
+
+Python 3.11, FastAPI, SQLAlchemy, PostgreSQL (Supabase in production, a Postgres container locally), Redis, Docker and Docker Compose, Pytest, Locust, GitHub Actions, Render. Passwords use passlib with bcrypt, tokens use python-jose.
+
+## API
+
+| Method | Path | Auth | Notes |
+|---|---|---|---|
+| POST | `/auth/register` | none | JSON body `{"email", "password"}` |
+| POST | `/auth/login` | none | JSON body, returns `{"access_token", "token_type"}` |
+| POST | `/urls/shorten` | bearer | Body `{"original_url", "expires_at"?}` |
+| GET | `/{short_code}` | none | 307 redirect, 404 if unknown, 410 if expired |
+| PUT | `/urls/{short_code}` | bearer, owner | 403 for non-owners |
+| DELETE | `/urls/{short_code}` | bearer, owner | 403 for non-owners |
+
+Login takes a JSON body, not an OAuth2 form, so the Authorize button in Swagger will not work. Call `POST /auth/login`, then send the token as `Authorization: Bearer <token>`.
+
+**Shorten a URL**
+
+```bash
+curl -X POST 'https://url-shortener-api-6g12.onrender.com/urls/shorten' \
+  -H 'Authorization: Bearer <your_jwt_token>' \
+  -H 'Content-Type: application/json' \
+  -d '{"original_url": "https://www.example.com"}'
 ```
-✨ Core Features & Metrics
-•	Tests: 15/15 passing
-•	JWT-Enforced Link Ownership: /shorten requires a valid bearer token; links are attributed to the authenticated user (owner_id), not hardcoded.
-•	Cache-Aside Redirects: Redirect lookups check Redis first, fall back to PostgreSQL on miss, then populate the cache — with hit/miss counters tracked in Redis.
-•	Cache Invalidation on Update/Delete: Updating or deleting a short URL evicts its Redis key so redirects never serve stale data.
-•	Fixed-Window Rate Limiting: IP-based request throttling with a fixed time window; fails open (bypasses limiting, doesn’t crash) if Redis is unreachable.
-•	Request Timing: X-Process-Time header injected on every response via custom middleware.
-•	Link Expiration: Expired links return 410 Gone.
-•	Load Testing Ready: Includes a locustfile.py for concurrency/throughput testing.
+
+Response (200):
+
+```json
+{
+  "id": 2,
+  "original_url": "https://www.example.com",
+  "short_code": "2BaPR8",
+  "owner_id": 6,
+  "created_at": "2026-10-03T17:32:10.974312",
+  "updated_at": "2026-10-03T17:32:10.974315",
+  "expires_at": null
+}
 ```
-________________________________________
+
+A request without a token returns 401.
+
+**Rate limit exceeded** (429): `{"detail": "Too many requests. Slow down."}`
+
+## Project structure
+
 ```
-🛠️ Tech Stack
-•	Framework: FastAPI (Python 3.11+)
-•	Database & ORM: PostgreSQL (Supabase) + SQLAlchemy ORM
-•	Caching: Redis
-•	Migrations: Alembic
-•	Security: Passlib (bcrypt), Python-JOSE (JWT)
-•	Performance Testing: Locust
-•	Containerization: Docker & Docker Compose
-•	Testing: Pytest
-•	CI/CD: GitHub Actions
-•	Hosting: Render
+app/
+  core/          config, database engine, Redis cache wrapper, JWT and password helpers, logging middleware
+  middleware/    rate limiter, timing, error handling
+  models/        SQLAlchemy models (users, url_mappings, analytics_clicks)
+  repositories/  database access (crud.py)
+  routers/       auth, health, redirect, urls
+  schemas/       Pydantic request and response models
+  services/      business logic (url_service.py)
+  main.py        application entrypoint
+tests/           Pytest suite
+locustfile.py    Locust load test
+docker-compose.yml, Dockerfile, pytest.ini
+.github/workflows/ci.yml
 ```
-________________________________________
-📁 Project Structure
-``` url_shortener_api/
-├── .github/workflows/
-│   └── ci.yml                # GitHub Actions CI/CD pipeline
-├── alembic/                  # Database migration scripts & versions
-├── app/
-│   ├── core/                 # App configs, DB engine, Redis, security & logging middleware
-│   │   ├── config.py
-│   │   ├── database.py
-│   │   ├── logging_middleware.py
-│   │   ├── redis.py
-│   │   └── security.py
-│   ├── middleware/           # Custom HTTP & error handling middlewares
-│   │   ├── errors.py
-│   │   ├── ratelimit.py
-│   │   ├── timing.py
-│   │   └── logging.py
-│   ├── models/               # SQLAlchemy database models
-│   │   ├── models.py
-│   │   └── url.py
-│   ├── repositories/         # Database abstraction layer (CRUD operations)
-│   │   └── crud.py
-│   ├── routers/              # API endpoint route controllers
-│   │   ├── auth.py
-│   │   ├── health.py
-│   │   ├── redirect.py
-│   │   └── urls.py
-│   ├── schemas/              # Pydantic request/response validation schemas
-│   │   └── schemas.py
-│   ├── services/             # Business logic layer
-│   │   ├── analytics.py
-│   │   ├── shortener.py
-│   │   └── url_service.py
-│   └── main.py               # Application entrypoint
-├── tests/                    # Pytest test suite
-│   ├── conftest.py
-│   ├── test_analytics.py
-│   ├── test_auth.py
-│   ├── test_cache_metrics.py
-│   ├── test_expiration.py
-│   ├── test_main.py
-│   └── test_redirect.py
-├── docker-compose.yml        # Local multi-container stack configuration
-├── Dockerfile                # Production container recipe
-├── locustfile.py             # Locust load testing script
-├── alembic.ini               # Alembic configuration
-└── requirements.txt          # Python package dependencies 
-```
-_______________________________________
-🔄 Cache-Aside Redirect Flow
+
+## Cache-aside redirect flow
+
 ```
 Client          FastAPI           Redis           PostgreSQL
   |  GET /{code}    |               |                 |
   |---------------->|               |                 |
   |                 |--- GET code ->|                 |
-  |                 |               |                 |
   |                 |  [Cache HIT]  |                 |
-  |                 |<-- target_url-|                 |
-  |<-- 307 Redirect-|               |                 |
-  |                 |               |                 |
+  |                 |<-- url -------|                 |
+  |<-- 307 ---------|               |                 |
   |                 |  [Cache MISS] |                 |
   |                 |<---- nil -----|                 |
   |                 |---------------------- SELECT -->|
-  |                 |<--------------------- target_url|
+  |                 |<---------------------- url -----|
   |                 |--- SET code ->|                 |
-  |<-- 307 Redirect-|               |                 |
+  |<-- 307 ---------|               |                 |
+On update or delete: FastAPI --- DEL code ---> Redis
 ```
+
+## Design decisions
+
+**Cache-aside, not write-through.** Redirects are the hottest path, so the app checks Redis first, queries PostgreSQL on a miss, and stores the result. Entries expire after one hour, or when the link expires if that comes sooner. Creating a link does not populate the cache, so the first redirect to any link is always a miss. Updates and deletes evict the key.
+
+**Fixed-window rate limiting.** Each client IP gets a counter in Redis. The counter and its 60-second expiry are created in one atomic call (`SET key 0 EX 60 NX`), then incremented. The default limit is 10 requests per minute per IP, configurable with the `RATE_LIMIT` environment variable. A fixed window is simple and cheap, with the known trade-off that bursts at a window boundary can briefly exceed the limit. If Redis is unreachable the limiter lets requests through and logs a warning, so a cache outage does not take the API down. The client IP is read from `X-Forwarded-For` because Render sits behind a proxy. `/docs`, `/redoc`, `/openapi.json`, and `/health` are exempt.
+
+**Short codes.** Random base62 strings, checked against the database for collisions. After five failed attempts the code length grows to 8.
+
+**Auth.** Tokens carry the user id in the `sub` claim. Ownership is checked in the service layer, not only in the route.
+
+## Testing
+
+17 tests cover registration and login, protected routes, redirects, expiry, update and delete, owner-only access, and cache metrics. Run them with:
+
+```bash
+docker compose up -d --build
+docker compose exec web pytest -v
 ```
-On update/delete: FastAPI --- DEL code ---> Redis  (evicts stale entry)
 
-  On update/delete: FastAPI --- DEL code ---> Redis  (evicts stale entry)
-The redirect path checks Redis before ever touching PostgreSQL, so hot links are served without a database round-trip. On a miss, the result is written back to Redis so the next request for that code is a cache hit. Updates and deletes explicitly evict the key so a stale cache entry can never outlive the source of truth in Postgres.
+CI runs the suite on every push and pull request to `main`.
+
+Honest notes on what the suite does and does not do:
+- Most tests mock the logged-in user so they can focus on other behavior. `tests/test_auth_flow.py` does not mock it: it logs in through the real endpoint and sends the real token to a protected route.
+- Tests run against in-memory SQLite, not PostgreSQL.
+- The rate limiter is bypassed during tests. It was verified by hand against the deployed API (ten requests succeed, the eleventh returns 429).
+- Some assertions are weak. The analytics test only checks that fields exist.
+
+## Load test results
+
+Run locally with Locust: Docker Compose on a single laptop, the load generator and the app sharing the same CPU, 20 concurrent simulated users, 60 seconds, rate limit raised for the run. Each user registers, logs in, creates links, and redirects only to links it created.
+
+| | Run 1 | Run 2 |
+|---|---|---|
+| Requests (failures) | 733 (0) | 801 (0) |
+| Redirect on cache hit, median | 16 ms | 18 ms |
+| Redirect on cache miss, median | 69 ms | 66 ms |
+
+Cache misses also include a PostgreSQL lookup and a write, so the gap is not purely cache benefit. These are local numbers from a self-limiting script (users wait between requests), so they say nothing about capacity.
+
+On the deployed API, the first redirect to a new link reported an `X-Process-Time` of about 310 ms and the next five about 4 ms.
+
+To reproduce:
+
+```bash
+# bash
+RATE_LIMIT=100000 docker compose up -d
+locust -f locustfile.py --host=http://localhost:8000 --headless -u 20 -r 5 -t 60s
 ```
-________________________________________
+
+```powershell
+# PowerShell
+$env:RATE_LIMIT = "100000"; docker compose up -d
+locust -f locustfile.py --host=http://localhost:8000 --headless -u 20 -r 5 -t 60s
+Remove-Item Env:RATE_LIMIT; docker compose up -d
 ```
-🔌 API Request / Response Examples
-1. Shorten a URL (POST /urls/) — requires auth
-Request:
-curl -X POST 'https://url-shortener-api-6g12.onrender.com/urls/' \
-  -H 'accept: application/json' \
-  -H 'Authorization: Bearer <your_jwt_token>' \
-  -H 'Content-Type: application/json' \
-  -d '{"target_url": "https://www.example.com/very/long/path/to/resource"}'
-Response (201 Created):
-{
-  "id": 1,
-  "target_url": "https://www.example.com/very/long/path/to/resource",
-  "short_code": "a8B3k9",
-  "clicks": 0,
-  "is_active": true,
-  "created_at": "2026-08-07T22:00:00.000Z"
-}
-No token → 401 Unauthorized.
 
-2. Redirect to Target URL (GET /{short_code})
-Request:
-curl -I https://url-shortener-api-6g12.onrender.com/a8B3k9
-Response (307 Temporary Redirect):
-HTTP/1.1 307 Temporary Redirect
-location: https://www.example.com/very/long/path/to/resource
-3. Expired Link
-Response (410 Gone):
-{
-  "detail": "URL expired"
-}
-4. Rate Limit Exceeded
-Response (429 Too Many Requests):
-{
-  "detail": "Rate limit exceeded: 10 per 1 minute"
-}
-```
-________________________________________
-```
-🏛️ Design Decisions & Trade-Offs
-Short code generation & collisions. Codes are generated as random Base62 strings ([a-zA-Z0-9]). The repository layer checks uniqueness against the database, and the service loops to regenerate on collision — simple and sufficient at current volumes, though a counter-based scheme would scale better at very high write throughput.
+Never set `RATE_LIMIT` that high on a real deployment.
 
-Caching: cache-aside over write-through. Redirects are the highest-throughput path, so GET /{code} checks Redis first, falls back to PostgreSQL on a miss, then populates the cache — avoiding a DB hit on every redirect (see diagram above). Hit/miss counts are tracked as Redis counters for basic cache-efficiency visibility. Update and delete operations explicitly evict the key (DEL) so a stale cache entry can never outlive the source of truth.
+## Bugs found and fixed
 
-Rate limiting: fixed window, not sliding window. The limiter uses a fixed-window counter (SET key 1 EX window, then INCR) rather than a sliding-window log. This is simpler and cheaper than sliding-window/token-bucket approaches, with the known trade-off that burst traffic right at a window boundary can briefly exceed the intended rate — an acceptable trade-off for this project’s scale, but something a production system at higher traffic would want to revisit. If Redis itself is unreachable, the middleware fails open (bypasses limiting) rather than taking the API down.
+- **Rate limiter silently disabled in production.** It connected to `localhost` instead of the configured `REDIS_URL`, and a bare `except: pass` hid the failure, so every request went through. Fixed by using the configured Redis URL, creating the counter and its expiry atomically, and logging a warning when Redis is unreachable. Verified against the deployed API.
+- **JWT claim-key mismatch.** Login wrote `user_id` into the token while the verifier read `sub`, so authenticated requests were rejected. The test suite stayed green because a fixture mocked authentication for every test. Fixed the key and added tests that send a real login token through the real verifier. The tests fail if the key is changed back.
+- **Duplicate redirect route without an expiry check.** An older `/{code}` route redirected expired links with a 307 while `/r/{code}` correctly returned 410. Consolidated into one implementation, and verified on the deployed API that an expired link returns 410.
+- **Missing cache `delete` method.** Update and delete called a method the cache wrapper did not have, so they would have failed after the database commit. No test touched those routes. Added the method and a test that runs both.
 
+## Known limitations
 
-Auth: JWT ownership on write paths. /shorten requires a valid bearer token and attributes the created link to the authenticated user rather than a hardcoded owner — this was a real bug caught during review (it originally defaulted every link to owner_id=1 with no auth check) and fixed by wiring Depends(get_current_user) into the endpoint.
-```
-________________________________________
+- **Click analytics are not implemented.** The `analytics_clicks` table and `GET /urls/stats/{short_code}` exist, but nothing records clicks, so the count is always 0. Counting in Redis and flushing in batches would keep database writes off the hot path.
+- **Redirects share the strict rate limit.** Ten requests per minute per IP suits writes and logins, not redirects. Redirects should get a separate, much higher limit.
+- **No test confirms that eviction removes a cached key.** The update and delete test only checks that the calls succeed.
+- **Alembic is configured, but the app creates tables at startup** with `create_all`, so migrations are not what builds the schema.
+- **`updated_at` also changes when a cache-miss redirect happens**, which blurs the meaning of the field. A separate `last_accessed_at` column would fix it.
+- **HEAD requests to a short link return 405.**
+- **Sentry is initialized when `SENTRY_DSN` is set** but has not been verified end to end.
 
-🚀 Getting Started Locally
-Prerequisites
-•	Docker & Docker Compose
-•	Git
+## Running locally
 
+Prerequisites: Docker and Docker Compose.
 
-1. Clone the Repository
 ```bash
 git clone https://github.com/fastlearner111/url-shortener-api.git
 cd url-shortener-api
-```
-
-
-2. Create a .env File
-```env
-Copy .env.example to .env and fill in your own values:
-DATABASE_URL=postgresql://postgres:your_password@db:5432/postgres
-SECRET_KEY=your_super_secret_key_here
-REDIS_URL=redis://redis:6379
-SENTRY_DSN=your_sentry_dsn_here
-ACCESS_TOKEN_EXPIRE_MINUTES=60
-```
-
-3. Run with Docker Compose
-```
 docker compose up --build
 ```
-The API will be available locally at http://localhost:8000.
 
-
-4. Apply Database Migrations
-```
-docker compose exec api alembic upgrade head
-```
-
-________________________________________
-```
-🧪 Running Tests & Load Tests
-Run the automated test suite:
-docker compose exec api pytest -v
-Run load tests:
-locust -f locustfile.py --host=http://localhost:8000
-```
-________________________________________
-```
-🔮 Future Improvements
-•	Custom Aliases: Allow users to specify personalized short codes (e.g., /github, /portfolio).
-•	Per-User Analytics Dashboard: Aggregate click data by geography, user-agent, and referral source.
-•	Sliding-Window Rate Limiting: Replace the current fixed-window limiter to eliminate boundary-burst behavior at higher traffic.
-•	Refresh Tokens: Extend the current JWT flow with refresh-token support for longer-lived sessions.
-•	Load Test Benchmarks: Publish real Locust throughput/latency numbers (RPS, P95 latency, failure rate) once a representative benchmark run is completed.
-```
+The API is available at http://localhost:8000. Compose starts the API (service `web`), PostgreSQL, and Redis, and sets `DATABASE_URL`, `REDIS_URL`, and `SECRET_KEY` for local development. Change the secret for anything beyond local use.
