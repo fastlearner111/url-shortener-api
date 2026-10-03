@@ -11,7 +11,7 @@
   <img src="https://img.shields.io/badge/Hosting-Render-F1502F?style=flat&logo=render&logoColor=white" />
 </p>
 
-# URL Shortener API
+
 
 A REST API for creating and resolving short links, built with FastAPI, PostgreSQL, and Redis. Authenticated users create links and manage their own. Redirects are served through a Redis cache-aside layer.
 
